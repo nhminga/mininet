@@ -1,0 +1,50 @@
+\#!/usr/bin/python
+"""
+    This is a topu of our test. It shows that how to add an interface(for example a real hardware interface) to a network after the network is created.
+    This code writed by li cheng, after learning mininet of sprient's.
+"""
+import re
+from mininet.cli import CLI
+from mininet.log import setLogLevel, info,error
+from mininet.net import Mininet
+from mininet.link import Intf
+from mininet.topolib import TreeTopo
+from mininet.util import quietRun
+from mininet.node import RemoteController, OVSKernelSwitch
+def checkIntf(intf):
+    #make sure intface exists and is not configured.
+    if(' %s:'% intf) not in quietRun('ip link show'):
+        error('Error:', intf, 'does not exist!\n' )
+        exit(1)
+    ips = re.findall( r'\d+\.\d+\.\d+\.\d+', quietRun( 'ifconfig ' + intf ) )
+    if ips:
+        error("Error:", intf, 'has an IP address,'
+            'and is probably in use!\n')
+        exit(1)
+if __name__ == "__main__":
+    setLogLevel("info")
+    OVSKernelSwitch.setup()
+    intfName_1 = "eth1"  #将虚拟机的eth1赋值给intfName_1,
+    info("****checking****", intfName_1, '\n')
+    checkIntf(intfName_1) #检查eth1是否可用
+
+    info("****creating network****\n")
+    net = Mininet(listenPort = 6633) #监听端口是6633
+
+    mycontroller = RemoteController("muziController", ip = "192.168.0.1")#设定远程控制器
+
+    switch_1 = net.addSwitch('s1')#添加交换机s1
+    net.controllers = [mycontroller]#添加控制器
+
+    _intf_1 = Intf(intfName_1, node = switch_1, port = 1)#使用接口函数把虚拟机的网卡和mininet中的交换机的端口1连接
+
+    h1 = net.addHost('h1')#创建host1
+    h2 = net.addHost('h2')
+    net.addLink(switch_1, h1)#将h1连接到s1上
+    net.addLink(switch_1, h2)
+
+    info("*****Adding hardware interface ", intfName_1, "to switch:" ,switch_1.name, '\n')
+
+    net.start()#启动mininet类的对象net
+    CLI(net)#启动命令行
+    net.stop()
